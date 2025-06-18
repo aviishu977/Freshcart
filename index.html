@@ -101,5 +101,14 @@
 
 <script src="script.js"></script>
 
+<script>
+  document.querySelectorAll('a[target="_blank"]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      window.AppInventor.setWebViewString(link.href);
+    });
+  });
+</script>
+  
 </body>
 </html>
