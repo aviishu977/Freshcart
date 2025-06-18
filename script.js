@@ -258,20 +258,6 @@ function filterProducts() {
 function sendOrder() {
   const phone = document.getElementById('phone').value.trim();
   const address = document.getElementById('address').value.trim();
-
-  if (!phone.match(/^\d{9}$/)) {
-    alert('გთხოვთ შეიყვანოთ სწორი 9-ციფრიანი ტელეფონის ნომერი.');
-    return;
-  }
-  if (Object.keys(selectedProducts).length === 0) {
-    alert('გთხოვთ აირჩიოთ მინიმუმ ერთი პროდუქტი.');
-    return;
-  }
-  if (!address) {
-    alert('გთხოვთ მიუთითოთ მიწოდების მისამართი.');
-    return;
-  }
-
   const orderLines = Object.values(selectedProducts).map(item =>
     `${item.name} (${item.quantity}): ${(item.price * item.quantity).toFixed(2)}₾`
   ).join('\n- ');
