@@ -379,7 +379,7 @@ function generateUniqueOrderCode() {
 
   let code;
   do {
-    code = Math.floor(1000 + Math.random() * 9000); // 4 ციფრი 1000-დან 9999-მდე
+    code = Math.floor(000001 + Math.random() * 999999); // 4 ციფრი 1000-დან 9999-მდე
   } while (usedCodes.includes(code));
 
   usedCodes.push(code);
