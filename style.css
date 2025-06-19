@@ -12,15 +12,20 @@
   --toast-bg: #27ae60cc;
   --menu-width: 280px;
   --shadow: rgba(0, 0, 0, 0.5);
+  --closed-bg: #e74c3c;
 }
+
+/* ფონტი */
 @font-face {
   font-family: 'myffont';
   src: url('alk-sanet.ttf');
 }
+
 *, *::before, *::after {
   box-sizing: border-box;
   font-family: 'myffont';
 }
+
 body {
   margin: 0;
   background: var(--bg-dark);
@@ -434,7 +439,7 @@ main {
   margin-top: 32px;
   border: 2px solid var(--primary);
   user-select: none;
-  box-shadow: 0 5px 20px var(  --toast-bg);
+  box-shadow: 0 5px 20px var(--toast-bg);
 }
 #order-summary h3 {
   font-weight: 700;
@@ -579,7 +584,7 @@ footer button:active {
   transition: opacity 0.3s ease;
 }
 
-/* Modal Window - Fullscreen */
+/* Modal Window */
 .modal {
   position: fixed;
   top: 0;
@@ -604,15 +609,14 @@ footer button:active {
   transition: opacity 0.3s ease;
   user-select: text;
   overflow-y: auto;
+  text-align: center;
 }
 
-/* Show modal */
 .modal.show {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* Modal content */
 .modal-content h2 {
   margin-top: 0;
   color: var(--primary);
@@ -631,7 +635,6 @@ footer button:active {
   text-align: center;
 }
 
-/* Buttons container */
 .modal-buttons {
   display: flex;
   justify-content: center;
@@ -642,7 +645,6 @@ footer button:active {
   max-width: 400px;
 }
 
-/* Modal buttons */
 .modal-buttons button {
   flex: 1 1 45%;
   padding: 14px 0;
@@ -677,7 +679,6 @@ footer button:active {
   border-color: var(--primary-soft);
 }
 
-/* Close button */
 .modal-close {
   position: absolute;
   top: 12px;
@@ -699,7 +700,6 @@ footer button:active {
   outline: none;
 }
 
-/* Responsive */
 @media (max-width: 440px) {
   .modal {
     padding: 20px 20px;
@@ -733,3 +733,12 @@ footer button:active {
   align-items: center;
   justify-content: center;
 }
+#validationMessage{
+  display:none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #e74c3c; color: white; padding: 15px 25px; border-radius: 8px; font-weight: 700; z-index: 1500; box-shadow: 0 4px 12px rgba(0,0,0,0.5); user-select:none;
+}
+#validationCloseBtn{
+  background: transparent; border: none; color: white; font-size: 20px; font-weight: 700; cursor: pointer; margin-left: 15px; line-height: 1;
+}
+#adImage{
+  cursor:pointer; max-width: 100%; border-radius: 0px; margin-top: 100px;
+  }
