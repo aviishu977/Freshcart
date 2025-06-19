@@ -40,7 +40,7 @@ let sponsorLink = '';
 function checkServiceAvailability() {
   const now = new Date();
   const hour = now.getHours();
-  const isClosed = (hour >= 23) || (hour < 8);
+  const isClosed = (hour >= 20) || (hour < 8);
 
   if (isClosed) {
     if (!document.getElementById('serviceClosedMessage')) {
@@ -373,6 +373,21 @@ validationCloseBtn.addEventListener('click', () => {
   validationMessage.style.display = 'none';
 });
 
+// --- უნიკალური 4 ციფრიანი შეკვეთის ნომრის გენერაცია
+function generateUniqueOrderCode() {
+  const usedCodes = JSON.parse(localStorage.getItem('usedOrderCodes') || '[]');
+
+  let code;
+  do {
+    code = Math.floor(1000 + Math.random() * 9000); // 4 ციფრი 1000-დან 9999-მდე
+  } while (usedCodes.includes(code));
+
+  usedCodes.push(code);
+  localStorage.setItem('usedOrderCodes', JSON.stringify(usedCodes));
+
+  return code;
+}
+
 // --- შეკვეთის ვალიდაცია
 function validateOrder() {
   const phoneInput = document.getElementById('phone');
@@ -416,8 +431,12 @@ function sendOrder() {
 
   const total = Object.values(selectedProducts).reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  const orderCode = generateUniqueOrderCode();
+
   const body = `
 📞 ტელეფონი: ${phone}
+
+🆔 შეკვეთის ნომერი: ${orderCode}
 
 🧾 შეკვეთის დეტალები:
 - ${orderLines}
@@ -428,8 +447,8 @@ function sendOrder() {
 ${address}
 `.trim();
 
-  window.location.href = `mailto:nadashviligio707@gmail.com?subject=ახალი კურიერის შეკვეთა&body=${encodeURIComponent(body)}`;
-  showToast('შეკვეთა წარმატებით გაიგზავნა!');
+  window.location.href = `mailto:nadashviligio707@gmail.com?subject=ახალი კურიერის შეკვეთა #${orderCode}&body=${encodeURIComponent(body)}`;
+  showToast(`შეკვეთა წარმატებით გაიგზავნა! თქვენი შეკვეთის ნომერია: ${orderCode}`);
 }
 
 // --- მოდალური მართვა
