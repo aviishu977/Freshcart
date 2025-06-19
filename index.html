@@ -53,10 +53,6 @@
 <div id="orderModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc" tabindex="-1" hidden>
   <div class="modal-content">
     <h2 id="modalTitle">შეკვეთის გაგზავნის შემდეგ</h2>
-    <p id="modalDesc">
-      შეკვეთის გაგზავნის შემდეგ დაბრუნდით ვებსაიტზე და დააჭირეთ ღილაკს „გადახდა“. 
-      გადახდის გვერდზე მიუთითეთ თქვენი შეკვეთის სრული თანხა და „დანიშნულების ველში“ აუცილებლად ჩაწერეთ თქვენი ტელეფონის ნომერი — ეს აუცილებელია თქვენი გადახდის იდენტიფიკაციისთვის.
-    </p>
     <section class="location-form" aria-label="ტელეფონის ნომერი და მიწოდების მისამართი">
       <h2>ტელეფონის ნომერი და მიწოდების მისამართი</h2>
       <label for="phone" class="sr-only">ტელეფონის ნომერი (9 ციფრი)</label>
@@ -64,6 +60,10 @@
       <label for="address" class="sr-only">მისამართი</label>
       <input type="text" id="address" placeholder="მისამართი" aria-required="true" autocomplete="street-address" />
     </section>
+    <p id="modalDesc">
+      შეკვეთის გაგზავნის შემდეგ დაბრუნდით ვებსაიტზე და დააჭირეთ ღილაკს „გადახდა“. 
+      გადახდის გვერდზე მიუთითეთ თქვენი შეკვეთის სრული თანხა და „დანიშნულების ველში“ აუცილებლად ჩაწერეთ თქვენი ტელეფონის ნომერი — ეს აუცილებელია თქვენი გადახდის იდენტიფიკაციისთვის.
+    </p>
     <div class="modal-buttons">
       <button id="modalSendOrderBtn" type="button">შეკვეთის გაგზავნა</button>
       <button id="modalPaymentBtn" type="button">გადახდა</button>
