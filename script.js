@@ -1,4 +1,4 @@
-// Variables for DOM elements
+// ელემენტების მიღება
 const burgerButton = document.getElementById('burgerButton');
 const sideMenu = document.getElementById('sideMenu');
 const overlay = document.getElementById('overlay');
@@ -17,25 +17,149 @@ const footerSendOrderBtn = document.querySelector('footer button[type="button"]'
 const cartButton = document.getElementById('cartButton');
 const orderSummary = document.getElementById('order-summary');
 
+const adModal = document.getElementById('adModal');
+const adCloseBtn = document.getElementById('adCloseBtn');
+const adImage = document.getElementById('adImage');
+
+const validationMessage = document.getElementById('validationMessage');
+const validationText = document.getElementById('validationText');
+const validationCloseBtn = document.getElementById('validationCloseBtn');
+
 const paymentLink = 'https://egreve.bog.ge/G10o';
 
 let productsByCategory = {};
-let selectedProducts = {};
 let filteredProductsByCategory = {};
+let selectedProducts = {};
+let ads = [];
+let currentAdIndex = 0;
+let currentIndex = 0;
+let slideshowInterval;
+let sponsorLink = '';
 
-// Load products from JSON
+// --- სერვისის ხელმისაწვდომობის შემოწმება
+function checkServiceAvailability() {
+  const now = new Date();
+  const hour = now.getHours();
+  const isClosed = (hour >= 20) || (hour < 8);
+
+  if (isClosed) {
+    if (!document.getElementById('serviceClosedMessage')) {
+      const messageDiv = document.createElement('div');
+      messageDiv.id = 'serviceClosedMessage';
+      messageDiv.textContent = 'საღამოს 20:00 საათიდან დილის 08:00 საათამდე პლატფორმა არ მუშაობს – აღნიშნულ პერიოდში მომსახურება შეჩერებულია.';
+      Object.assign(messageDiv.style, {
+        position: 'fixed',
+        top: '60px',
+        left: '0',
+        right: '0',
+        backgroundColor: '#e74c3c',
+        color: 'white',
+        padding: '20px',
+        textAlign: 'center',
+        fontWeight: '700',
+        fontSize: '1.2rem',
+        zIndex: '1400',
+      });
+      document.body.insertBefore(messageDiv, document.body.firstChild);
+    }
+    mainContent.style.filter = 'blur(3px)';
+    mainContent.style.pointerEvents = 'none';
+    burgerButton.disabled = true;
+    footerSendOrderBtn.disabled = true;
+    cartButton.disabled = true;
+    return true;
+  } else {
+    const existingMsg = document.getElementById('serviceClosedMessage');
+    if (existingMsg) existingMsg.remove();
+    mainContent.style.filter = 'none';
+    mainContent.style.pointerEvents = 'auto';
+    burgerButton.disabled = false;
+    footerSendOrderBtn.disabled = false;
+    cartButton.disabled = false;
+    return false;
+  }
+}
+
+// --- პროდუქტის ჩატვირთვა JSON-დან
 async function loadProducts() {
   try {
     const response = await fetch('products.json');
     productsByCategory = await response.json();
     filteredProductsByCategory = {...productsByCategory};
     renderProducts(filteredProductsByCategory);
-  } catch (error) {
-    console.error('პროდუქტების ჩატვირთვა ვერ მოხერხდა:', error);
+  } catch (e) {
+    console.error('პროდუქტების ჩატვირთვა ვერ მოხერხდა:', e);
   }
 }
 
-// Menu open/close
+// --- რეკლამის ჩატვირთვა JSON-დან
+async function loadAds() {
+  try {
+    const response = await fetch('ad.json');
+    const data = await response.json();
+    ads = data.advertisements || [];
+    if (ads.length > 0) {
+      currentAdIndex = 0;
+      showAd(currentAdIndex);
+    }
+  } catch (e) {
+    console.error('რეკლამის ჩატვირთვა ვერ მოხერხდა:', e);
+  }
+}
+
+function showAd(index) {
+  const ad = ads[index];
+  if (!ad) return;
+  adImage.src = ad.image;
+  sponsorLink = ad.link;
+  adImage.onclick = () => {
+    window.open(sponsorLink, '_blank', 'noopener');
+  };
+  adModal.hidden = false;
+  adModal.classList.add('show');
+  adModal.focus();
+}
+
+function startAdRotation(interval = 3000) {
+  if (ads.length <= 1) return;
+  setInterval(() => {
+    currentAdIndex = (currentAdIndex + 1) % ads.length;
+    showAd(currentAdIndex);
+  }, interval);
+}
+
+// --- სლაიდშოუს სურათები
+const images = [
+  'https://i.postimg.cc/Y9WRYCk8/Picsart-25-06-17-17-52-33-620.jpg',
+  'https://i.postimg.cc/43wBsSPb/Picsart-25-06-17-17-57-33-801.jpg',
+  'https://i.postimg.cc/sxWLjJvj/Picsart-25-06-17-17-53-42-737.jpg',
+  'https://i.postimg.cc/Kc3wDmQ6/Picsart-25-06-17-17-56-37-707.jpg'
+];
+
+const slideshow = document.querySelector('.slideshow');
+
+function initSlideshow() {
+  slideshow.innerHTML = '';
+  images.forEach((src, index) => {
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = `სურათი ${index + 1}`;
+    if (index === 0) img.classList.add('active');
+    slideshow.appendChild(img);
+  });
+  currentIndex = 0;
+  if (slideshowInterval) clearInterval(slideshowInterval);
+  slideshowInterval = setInterval(showNextSlide, 3000);
+}
+
+function showNextSlide() {
+  const slides = slideshow.querySelectorAll('img');
+  slides[currentIndex].classList.remove('active');
+  currentIndex = (currentIndex + 1) % slides.length;
+  slides[currentIndex].classList.add('active');
+}
+
+// --- მენიუს მართვა
 function openMenu() {
   sideMenu.classList.add('open');
   overlay.classList.add('visible');
@@ -44,7 +168,6 @@ function openMenu() {
   mainContent.style.filter = 'blur(3px)';
   sideMenu.focus();
 }
-
 function closeMenu() {
   sideMenu.classList.remove('open');
   overlay.classList.remove('visible');
@@ -53,25 +176,22 @@ function closeMenu() {
   mainContent.style.filter = 'none';
   burgerButton.focus();
 }
-
 burgerButton.addEventListener('click', () => {
   if (sideMenu.classList.contains('open')) closeMenu();
   else openMenu();
 });
-
 burgerButton.addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     burgerButton.click();
   }
 });
-
 overlay.addEventListener('click', () => {
   closeMenu();
   closeContentPanel();
 });
 
-// Sections content for side menu
+// --- კონტენტის პანელის მართვა
 const sectionsContent = {
   rules: {
     title: 'წესდება',
@@ -101,7 +221,6 @@ const sectionsContent = {
     html: `<p>ჩვენი სერვისი მოქმედებს შემდეგ ქალაქებში:</p><ul><li>თბილისი</li><li>ბათუმი</li><li>ქუთაისი</li><li>რუსთავი</li><li>გორი</li></ul>`
   }
 };
-
 function showContentPanel(sectionKey) {
   const section = sectionsContent[sectionKey];
   if (!section) return;
@@ -113,22 +232,18 @@ function showContentPanel(sectionKey) {
   closeMenu();
   contentPanel.focus();
 }
-
 function closeContentPanel() {
   contentPanel.classList.remove('active');
   overlay.classList.remove('visible');
   mainContent.style.filter = 'none';
   burgerButton.focus();
 }
-
 sideMenu.querySelectorAll('button.menu-item').forEach(btn => {
   btn.addEventListener('click', () => {
     showContentPanel(btn.getAttribute('data-section'));
   });
 });
-
 closeBtn.addEventListener('click', closeContentPanel);
-
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (contentPanel.classList.contains('active')) closeContentPanel();
@@ -137,7 +252,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Product rendering and interaction
+// --- პროდუქტის მართვა
 function createProductCard(product) {
   const selected = selectedProducts[product.id];
   return `
@@ -154,7 +269,6 @@ function createProductCard(product) {
     </article>
   `;
 }
-
 function renderProducts(filtered = filteredProductsByCategory) {
   const container = document.getElementById('productContainer');
   let html = '';
@@ -176,7 +290,6 @@ function renderProducts(filtered = filteredProductsByCategory) {
   container.innerHTML = html;
   updateTotals();
 }
-
 function toggleProduct(id) {
   if (selectedProducts[id]) {
     delete selectedProducts[id];
@@ -186,14 +299,12 @@ function toggleProduct(id) {
   }
   renderProducts(filteredProductsByCategory);
 }
-
 function adjustQuantity(event, id, delta) {
   event.stopPropagation();
   const current = selectedProducts[id]?.quantity || 0;
   const newQty = Math.max(0, current + delta);
   updateQuantity(event, id, newQty);
 }
-
 function updateQuantity(event, id, value) {
   event.stopPropagation();
   let qty = parseInt(value);
@@ -206,7 +317,6 @@ function updateQuantity(event, id, value) {
   }
   renderProducts(filteredProductsByCategory);
 }
-
 function findProductById(id) {
   for (const items of Object.values(productsByCategory)) {
     const found = items.find(p => p.id === id);
@@ -214,7 +324,6 @@ function findProductById(id) {
   }
   return null;
 }
-
 function updateTotals() {
   const summaryItems = document.getElementById('summaryItems');
   const summaryTotal = document.getElementById('summaryTotal');
@@ -234,7 +343,7 @@ function updateTotals() {
   summaryTotal.textContent = `${total.toFixed(2)}₾`;
 }
 
-// Toast notification
+// --- Toast შეტყობინებები
 function showToast(message) {
   const toast = document.getElementById('toast');
   toast.textContent = message;
@@ -242,7 +351,7 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// Filter products by search
+// --- პროდუქტების ძებნა
 function filterProducts() {
   const query = document.getElementById('productSearch').value.toLowerCase();
   filteredProductsByCategory = {};
@@ -254,8 +363,51 @@ function filterProducts() {
   renderProducts(filteredProductsByCategory);
 }
 
-// Send order via mailto
+// --- ვალიდაციის შეტყობინების მართვა
+function showValidationMessage(message) {
+  validationText.textContent = message;
+  validationMessage.style.display = 'flex';
+  validationMessage.style.alignItems = 'center';
+}
+validationCloseBtn.addEventListener('click', () => {
+  validationMessage.style.display = 'none';
+});
+
+// --- შეკვეთის ვალიდაცია
+function validateOrder() {
+  const phoneInput = document.getElementById('phone');
+  const addressInput = document.getElementById('address');
+
+  const phone = phoneInput.value.trim();
+  const address = addressInput.value.trim();
+
+  const phoneRegex = /^\d{9}$/;
+
+  if (!phoneRegex.test(phone)) {
+    showValidationMessage('გთხოვთ, სწორად მიუთითეთ 9 ციფრიანი ტელეფონის ნომერი.');
+    phoneInput.focus();
+    return false;
+  }
+
+  if (address.length === 0) {
+    showValidationMessage('გთხოვთ, მიუთითეთ მიწოდების სრული მისამართი.');
+    addressInput.focus();
+    return false;
+  }
+
+  if (Object.keys(selectedProducts).length === 0) {
+    showValidationMessage('გთხოვთ, აირჩიოთ მინიმუმ ერთი პროდუქტი.');
+    return false;
+  }
+
+  validationMessage.style.display = 'none';
+  return true;
+}
+
+// --- შეკვეთის გაგზავნა
 function sendOrder() {
+  if (!validateOrder()) return;
+
   const phone = document.getElementById('phone').value.trim();
   const address = document.getElementById('address').value.trim();
   const orderLines = Object.values(selectedProducts).map(item =>
@@ -276,20 +428,20 @@ function sendOrder() {
 ${address}
 `.trim();
 
-  window.location.href = `mailto:admin@example.com?subject=ახალი კურიერის შეკვეთა&body=${encodeURIComponent(body)}`;
-
+  window.location.href = `mailto:nadashviligio707@gmail.com?subject=ახალი კურიერის შეკვეთა&body=${encodeURIComponent(body)}`;
   showToast('შეკვეთა წარმატებით გაიგზავნა!');
 }
 
-// Modal management
+// --- მოდალური მართვა
 function openOrderModal() {
+  if (checkServiceAvailability()) return;
+
   modal.hidden = false;
   modal.classList.add('show');
   modalOverlay.classList.add('show');
   mainContent.style.filter = 'blur(3px)';
   modal.focus();
 }
-
 function closeOrderModal() {
   modal.classList.remove('show');
   modalOverlay.classList.remove('show');
@@ -297,74 +449,36 @@ function closeOrderModal() {
   modal.hidden = true;
   footerSendOrderBtn.focus();
 }
-
-// Event listeners for modal buttons
-footerSendOrderBtn.removeEventListener('click', sendOrder);
 footerSendOrderBtn.addEventListener('click', e => {
   e.preventDefault();
   openOrderModal();
 });
-
 modalSendOrderBtn.addEventListener('click', () => {
   closeOrderModal();
   sendOrder();
 });
-
 modalPaymentBtn.addEventListener('click', () => {
   window.open(paymentLink, '_blank', 'noopener');
   closeOrderModal();
 });
-
 modalCloseBtn.addEventListener('click', closeOrderModal);
 modalOverlay.addEventListener('click', closeOrderModal);
 
-// Product search input
+// --- რეკლამის მოდალი
+adCloseBtn.addEventListener('click', () => {
+  adModal.classList.remove('show');
+  adModal.hidden = true;
+});
+
+// --- პროდუქტების ძებნა
 document.getElementById('productSearch').addEventListener('input', filterProducts);
 
-// Save phone input to localStorage
+// --- ტელეფონის ნომრის შენახვა
 document.getElementById('phone').addEventListener('input', e => {
   localStorage.setItem('lastPhone', e.target.value);
 });
 
-// Load last phone and products on window load
-window.onload = () => {
-  loadProducts();
-  const lastPhone = localStorage.getItem('lastPhone');
-  if (lastPhone) {
-    document.getElementById('phone').value = lastPhone;
-  }
-};
-
-// Slideshow
-const images = [
-  'https://i.postimg.cc/Y9WRYCk8/Picsart-25-06-17-17-52-33-620.jpg',
-  'https://i.postimg.cc/43wBsSPb/Picsart-25-06-17-17-57-33-801.jpg',
-  'https://i.postimg.cc/sxWLjJvj/Picsart-25-06-17-17-53-42-737.jpg',
-  'https://i.postimg.cc/Kc3wDmQ6/Picsart-25-06-17-17-56-37-707.jpg'
-];
-
-const slideshow = document.querySelector('.slideshow');
-let currentIndex = 0;
-
-images.forEach((src, index) => {
-  const img = document.createElement('img');
-  img.src = src;
-  img.alt = `სურათი ${index + 1}`;
-  if (index === 0) img.classList.add('active');
-  slideshow.appendChild(img);
-});
-
-const slides = slideshow.querySelectorAll('img');
-
-function showNextSlide() {
-  slides[currentIndex].classList.remove('active');
-  currentIndex = (currentIndex + 1) % slides.length;
-  slides[currentIndex].classList.add('active');
-}
-
-setInterval(showNextSlide, 3000);
-
-// Cart button scroll to order summary
+// --- კალათის ღილაკი
 cartButton.addEventListener('click', () => {
   orderSummary.scrollIntoView({ behavior: 'smooth', block: 'start' });
   orderSummary.style.outline = '0px solid var(--primary)';
@@ -373,7 +487,29 @@ cartButton.addEventListener('click', () => {
   }, 2000);
 });
 
-// Expose functions globally for inline handlers
+// --- გვერდის ჩატვირთვა
+window.onload = async () => {
+  if (!checkServiceAvailability()) {
+    await loadProducts();
+    await loadAds();
+    initSlideshow();
+
+    const lastPhone = localStorage.getItem('lastPhone');
+    if (lastPhone) {
+      document.getElementById('phone').value = lastPhone;
+    }
+
+    adModal.hidden = false;
+    adModal.classList.add('show');
+    adModal.focus();
+
+    if (ads.length > 1) {
+      startAdRotation(7000);
+    }
+  }
+};
+
+// --- გლობალურად გამოცხადება (ინლაინ ჰენდლერებისთვის)
 window.toggleProduct = toggleProduct;
 window.adjustQuantity = adjustQuantity;
 window.updateQuantity = updateQuantity;
