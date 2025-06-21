@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Google Pay Test Page</title>
+  <script async src="https://pay.google.com/gp/p/js/pay.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+    }
+    #container {
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Google Pay სატესტო გადახდა</h1>
+  <div id="container"></div>
+
+  <script>
+    // შექმენი Google Pay კლიენტი ტესტ გარემოში
+    const paymentsClient = new google.payments.api.PaymentsClient({ environment: 'TEST' });
+
+    // გადახდის სერვისისთვის საჭირო მოთხოვნა
+    const isReadyToPayRequest = {
+      apiVersion: 2,
+      apiVersionMinor: 0,
+      allowedPaymentMethods: [{
+        type: 'CARD',
+        parameters: {
+          allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+          allowedCardNetworks: ['VISA', 'MASTERCARD']
+        }
+      }]
+    };
+
+    // შეამოწმე შეუძლია თუ არა Google Pay-ს გადახდის გაკეთება ამ მოწყობილობამ
+    paymentsClient.isReadyToPay(isReadyToPayRequest).then(response => {
+      if (response.result) {
+        // შექმენი Google Pay-ის ღილაკი და დაუმატე გვერდზე
+        const button = paymentsClient.createButton({
+          onClick: onGooglePayButtonClicked
+        });
+        document.getElementById('container').appendChild(button);
+      } else {
+        document.getElementById('container').innerText = "Google Pay არ არის ხელმისაწვდომი თქვენს მოწყობილობაზე.";
+      }
+    }).catch(err => {
+      console.error('isReadyToPay შეცდომა:', err);
+      document.getElementById('container').innerText = "შეცდომა Google Pay-ის შესამოწმებლად.";
+    });
+
+    // ღილაკზე დაჭერის შემდეგ გადახდის მოთხოვნის გაგზავნა
+    function onGooglePayButtonClicked() {
+      const paymentDataRequest = {
+        ...isReadyToPayRequest,
+        transactionInfo: {
+          totalPriceStatus: 'FINAL',
+          totalPrice: '1.00',
+          currencyCode: 'USD',
+          countryCode: 'US'
+        },
+        merchantInfo: {
+          merchantId: 'BCR2DN4T26D3HAIE', // შენს მიერ მოწოდებული მერჩანტის ID
+          merchantName: 'Test Merchant'
+        }
+      };
+
+      paymentsClient.loadPaymentData(paymentDataRequest)
+        .then(paymentData => {
+          console.log("გადახდა წარმატებულია", paymentData);
+          alert("გადახდა წარმატებით შესრულდა!");
+          // აქ შეგიძლია გააგზავნო paymentData სერვერზე დამუშავებისთვის
+        })
+        .catch(err => {
+          console.error("გადახდის შეცდომა:", err);
+          alert("გადახდა ვერ შესრულდა, სცადეთ ისევ.");
+        });
+    }
+  </script>
+</body>
+</html>
