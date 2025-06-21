@@ -3,50 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Google Pay სატესტო გვერდი (მობილური)</title>
+  <title>Google Pay ტესტი</title>
   <script async src="https://pay.google.com/gp/p/js/pay.js"></script>
   <style>
-    body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 1rem;
-      background: #f0f4f8;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      color: #222;
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      text-align: center;
-      color: #1a73e8;
-    }
-    #container {
-      margin-top: 2rem;
-      width: 100%;
-      max-width: 320px;
-      display: flex;
-      justify-content: center;
-    }
-    #message {
-      margin-top: 1rem;
-      color: #e53935;
-      font-weight: 600;
-      text-align: center;
-    }
-    button.gpay-button {
-      width: 100%;
-      height: 48px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-    }
+    body { font-family: Arial, sans-serif; padding: 1rem; }
+    #container { margin-top: 2rem; }
+    #message { color: red; margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <h1>Google Pay გადახდა</h1>
+  <h1>Google Pay ტესტი</h1>
   <div id="container"></div>
   <div id="message"></div>
 
@@ -71,16 +37,15 @@
         const button = paymentsClient.createButton({
           onClick: onGooglePayButtonClicked,
           buttonColor: 'default',
-          buttonType: 'long'  // გრძელი ღილაკი მობილურზე სრულად გასაფარებლად
+          buttonType: 'long'
         });
-        button.classList.add('gpay-button');
         document.getElementById('container').appendChild(button);
       } else {
         document.getElementById('message').textContent = "Google Pay ამ მოწყობილობაზე არ არის ხელმისაწვდომი.";
       }
     }).catch(err => {
-      console.error('isReadyToPay შეცდომა:', err);
-      document.getElementById('message').textContent = "შეცდომა გადახდის სისტემის შემოწმებისას.";
+      console.error("isReadyToPay შეცდომა:", err);
+      document.getElementById('message').textContent = "შეცდომა Google Pay-ის შემოწმებისას.";
     });
 
     function onGooglePayButtonClicked() {
@@ -93,7 +58,7 @@
           countryCode: 'US'
         },
         merchantInfo: {
-          merchantId: 'BCR2DN4T26D3HAIE', // შენი მერჩანტის ID
+          merchantId: 'BCR2DN4T26D3HAIE',
           merchantName: 'Test Merchant'
         }
       };
@@ -102,7 +67,6 @@
         .then(paymentData => {
           console.log("გადახდა წარმატებულია", paymentData);
           alert("გადახდა წარმატებით შესრულდა!");
-          // აქ შეგიძლია გააგზავნო paymentData სერვერზე დამუშავებისთვის
         })
         .catch(err => {
           console.error("გადახდის შეცდომა:", err);
