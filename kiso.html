@@ -1,28 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ka">
 <head>
   <meta charset="UTF-8" />
-  <title>Google Pay Test Page</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Google Pay სატესტო გვერდი (მობილური)</title>
   <script async src="https://pay.google.com/gp/p/js/pay.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      color: #222;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      color: #1a73e8;
     }
     #container {
       margin-top: 2rem;
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      justify-content: center;
+    }
+    #message {
+      margin-top: 1rem;
+      color: #e53935;
+      font-weight: 600;
+      text-align: center;
+    }
+    button.gpay-button {
+      width: 100%;
+      height: 48px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Google Pay სატესტო გადახდა</h1>
+  <h1>Google Pay გადახდა</h1>
   <div id="container"></div>
+  <div id="message"></div>
 
   <script>
-    // შექმენი Google Pay კლიენტი ტესტ გარემოში
     const paymentsClient = new google.payments.api.PaymentsClient({ environment: 'TEST' });
 
-    // გადახდის სერვისისთვის საჭირო მოთხოვნა
     const isReadyToPayRequest = {
       apiVersion: 2,
       apiVersionMinor: 0,
@@ -35,23 +65,24 @@
       }]
     };
 
-    // შეამოწმე შეუძლია თუ არა Google Pay-ს გადახდის გაკეთება ამ მოწყობილობამ
     paymentsClient.isReadyToPay(isReadyToPayRequest).then(response => {
+      console.log("isReadyToPay პასუხი:", response);
       if (response.result) {
-        // შექმენი Google Pay-ის ღილაკი და დაუმატე გვერდზე
         const button = paymentsClient.createButton({
-          onClick: onGooglePayButtonClicked
+          onClick: onGooglePayButtonClicked,
+          buttonColor: 'default',
+          buttonType: 'long'  // გრძელი ღილაკი მობილურზე სრულად გასაფარებლად
         });
+        button.classList.add('gpay-button');
         document.getElementById('container').appendChild(button);
       } else {
-        document.getElementById('container').innerText = "Google Pay არ არის ხელმისაწვდომი თქვენს მოწყობილობაზე.";
+        document.getElementById('message').textContent = "Google Pay ამ მოწყობილობაზე არ არის ხელმისაწვდომი.";
       }
     }).catch(err => {
       console.error('isReadyToPay შეცდომა:', err);
-      document.getElementById('container').innerText = "შეცდომა Google Pay-ის შესამოწმებლად.";
+      document.getElementById('message').textContent = "შეცდომა გადახდის სისტემის შემოწმებისას.";
     });
 
-    // ღილაკზე დაჭერის შემდეგ გადახდის მოთხოვნის გაგზავნა
     function onGooglePayButtonClicked() {
       const paymentDataRequest = {
         ...isReadyToPayRequest,
@@ -62,7 +93,7 @@
           countryCode: 'US'
         },
         merchantInfo: {
-          merchantId: 'BCR2DN4T26D3HAIE', // შენს მიერ მოწოდებული მერჩანტის ID
+          merchantId: 'BCR2DN4T26D3HAIE', // შენი მერჩანტის ID
           merchantName: 'Test Merchant'
         }
       };
