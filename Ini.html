@@ -1,141 +1,114 @@
-<!DOCTYPE html>
-<html lang="ka">
+<!DOCTYPE html><html lang="ka">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ვირტუალური ტელევიზია - YouTube Sync + ჩატი</title>
-<style>
-  body { font-family: Arial, sans-serif; margin:0; display:flex; flex-direction: column; height:100vh; }
-  #player { flex: 1 1 auto; }
-  #chat { height: 200px; border-top: 1px solid #ccc; overflow-y: auto; padding: 10px; background:#f9f9f9; }
-  #chatInput { width: 100%; padding: 10px; box-sizing: border-box; border: none; border-top: 1px solid #ccc; font-size: 16px; }
-  #messages { max-height: 200px; overflow-y: auto; }
-  .message { margin-bottom: 5px; }
-  .message strong { color: #333; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ვირტუალური ტელევიზია</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #000; color: #fff; display: flex; flex-direction: column; height: 100vh; }
+    #player { width: 100%; height: 220px; }
+    #chat { flex: 1; display: flex; flex-direction: column; padding: 10px; background: #111; overflow: hidden; }
+    #messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+    .message { padding: 5px 10px; margin-bottom: 5px; background: #222; border-radius: 8px; }
+    #chatInput { padding: 10px; border: none; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; background: #222; color: white; }
+  </style>
 </head>
-<body>
+<body>  <div id="player"></div>
+  <div id="chat">
+    <div id="messages"></div>
+    <input id="chatInput" placeholder="შეიყვანე შეტყობინება..." />
+  </div>  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
-<div id="player"></div>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
+      authDomain: "photog-457a1.firebaseapp.com",
+      databaseURL: "https://photog-457a1-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "photog-457a1",
+      storageBucket: "photog-457a1.firebasestorage.app",
+      messagingSenderId: "568507243860",
+      appId: "1:568507243860:web:f9a7128c3e703aa79c3cc1",
+      measurementId: "G-3D4Z7BKRBH"
+    };
 
-<div id="chat">
-  <div id="messages"></div>
-  <input id="chatInput" type="text" placeholder="წერე შეტყობინება და დააჭირე Enter" />
-</div>
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    let tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.body.appendChild(tag);
 
-  // Firebase კონფიგურაცია — ჩაანაცვლე შენი პარამეტრებით
-  const firebaseConfig = {
-    apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
-    authDomain: "photog-457a1.firebaseapp.com",
-    databaseURL: "https://photog-457a1-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "photog-457a1",
-    storageBucket: "photog-457a1.firebasestorage.app",
-    messagingSenderId: "568507243860",
-    appId: "1:568507243860:web:f9a7128c3e703aa79c3cc1",
-    measurementId: "G-3D4Z7BKRBH"
-  };
+    let player;
+    let isSyncing = false;
+    const YOUTUBE_VIDEO_ID = "dQw4w9WgXcQ";
+    const videoRef = ref(db, "virtual_tv/videoStatus");
+    const chatRef = ref(db, "virtual_tv/chatMessages");
 
-  // Firebase initialize
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    window.onYouTubeIframeAPIReady = function() {
+      player = new YT.Player('player', {
+        videoId: YOUTUBE_VIDEO_ID,
+        playerVars: { 'playsinline': 1 },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    };
 
-  // YouTube Iframe API-ის ლოდინი
-  let tag = document.createElement('script');
-  tag.src = "https://www.youtube.com/iframe_api";
-  document.body.appendChild(tag);
+    function onPlayerReady(event) {
+      onValue(videoRef, (snapshot) => {
+        const status = snapshot.val();
+        if (!status || !player) return;
+        isSyncing = true;
+        if (status.state === YT.PlayerState.PLAYING) {
+          player.seekTo(status.time || 0, true);
+          player.playVideo();
+        } else if (status.state === YT.PlayerState.PAUSED) {
+          player.seekTo(status.time || 0, true);
+          player.pauseVideo();
+        } else if (status.state === YT.PlayerState.ENDED) {
+          player.seekTo(status.time || 0, true);
+          player.stopVideo();
+        }
+        isSyncing = false;
+      });
 
-  let player;
-  let isSyncing = false;
-
-  // ვიდეოს ID ჩაანაცვლე შენი ლინკით (მაგ: YouTube Video ID)
-  const YOUTUBE_VIDEO_ID = "dQw4w9WgXcQ"; // მაგ., პოპულარული ვიდეო, შეცვალე სურვილისამებრ
-
-  // Firebase reference ვიდეოს სტატუსისთვის
-  const videoRef = ref(db, "virtual_tv/videoStatus");
-  // Firebase reference ჩატის მესიჯებისთვის
-  const chatRef = ref(db, "virtual_tv/chatMessages");
-
-  // YouTube API იწერება გლობალურად
-  window.onYouTubeIframeAPIReady = function() {
-    player = new YT.Player('player', {
-      height: '360',
-      width: '640',
-      videoId: YOUTUBE_VIDEO_ID,
-      playerVars: { 'playsinline': 1 },
-      events: {
-        'onReady': onPlayerReady,
-        'onStateChange': onPlayerStateChange
-      }
-    });
-  };
-
-  function onPlayerReady(event) {
-    // საწყისი ვიდეოს სტატუსის მოსმენა Firebase-დან
-    onValue(videoRef, (snapshot) => {
-      if (!player) return;
-      if (isSyncing) return; // რექურსიის თავიდან ასაცილებლად
-
-      const status = snapshot.val();
-      if (!status) return;
-
-      isSyncing = true;
-      if (status.state === YT.PlayerState.PLAYING) {
-        player.seekTo(status.time || 0, true);
-        player.playVideo();
-      } else if (status.state === YT.PlayerState.PAUSED) {
-        player.seekTo(status.time || 0, true);
-        player.pauseVideo();
-      } else if (status.state === YT.PlayerState.ENDED) {
-        player.seekTo(status.time || 0, true);
-        player.stopVideo();
-      }
-      isSyncing = false;
-    });
-
-    // ჩატის მესიჯების მოსმენა
-    onChildAdded(chatRef, (data) => {
-      addChatMessage(data.val());
-    });
-  }
-
-  function onPlayerStateChange(event) {
-    if (isSyncing) return;
-    const state = event.data;
-    const currentTime = player.getCurrentTime();
-
-    // ვიდეოს სტატუსის განახლება Firebase-ში
-    set(videoRef, {
-      state: state,
-      time: currentTime,
-      updatedAt: Date.now()
-    });
-  }
-
-  // ჩატის UI-ს ფუნქციები
-  const messagesDiv = document.getElementById("messages");
-  const chatInput = document.getElementById("chatInput");
-
-  function addChatMessage(message) {
-    const div = document.createElement("div");
-    div.classList.add("message");
-    div.textContent = message.text;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  }
-
-  chatInput.addEventListener("keypress", function(e) {
-    if (e.key === "Enter" && chatInput.value.trim() !== "") {
-      const messageText = chatInput.value.trim();
-      push(chatRef, { text: messageText, timestamp: Date.now() });
-      chatInput.value = "";
+      onChildAdded(chatRef, (data) => {
+        const message = data.val();
+        addChatMessage(message.text);
+      });
     }
-  });
 
-</script>
+    function onPlayerStateChange(event) {
+      if (isSyncing) return;
+      const currentTime = player.getCurrentTime();
+      const state = event.data;
+      set(videoRef, {
+        state: state,
+        time: currentTime,
+        updatedAt: Date.now()
+      });
+    }
 
-</body>
+    const messagesDiv = document.getElementById("messages");
+    const chatInput = document.getElementById("chatInput");
+
+    function addChatMessage(text) {
+      const div = document.createElement("div");
+      div.className = "message";
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    chatInput.addEventListener("keypress", function(e) {
+      if (e.key === "Enter" && chatInput.value.trim()) {
+        push(chatRef, {
+          text: chatInput.value.trim(),
+          timestamp: Date.now()
+        });
+        chatInput.value = "";
+      }
+    });
+  </script></body>
 </html>
