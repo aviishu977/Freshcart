@@ -18,7 +18,7 @@
     <input id="chatInput" placeholder="შეიყვანე შეტყობინება..." />
   </div>  <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    import { getDatabase, ref, onValue, set, push, onChildAdded, get, child } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
@@ -40,9 +40,11 @@
 
     let player;
     let isSyncing = false;
+    let isController = false;
     const YOUTUBE_VIDEO_ID = "dQw4w9WgXcQ";
     const videoRef = ref(db, "virtual_tv/videoStatus");
     const chatRef = ref(db, "virtual_tv/chatMessages");
+    const controllerRef = ref(db, "virtual_tv/controller");
 
     window.onYouTubeIframeAPIReady = function() {
       player = new YT.Player('player', {
@@ -55,7 +57,14 @@
       });
     };
 
-    function onPlayerReady(event) {
+    async function onPlayerReady(event) {
+      const snapshot = await get(controllerRef);
+      if (!snapshot.exists()) {
+        await set(controllerRef, { since: Date.now(), id: Math.random().toString(36).substring(2, 10) });
+        isController = true;
+        push(chatRef, { text: "🔧 ახალი კონტროლერი გაწვდილია ამ მოწყობილობაზე.", timestamp: Date.now() });
+      }
+
       onValue(videoRef, (snapshot) => {
         const status = snapshot.val();
         if (!status || !player) return;
@@ -80,7 +89,7 @@
     }
 
     function onPlayerStateChange(event) {
-      if (isSyncing) return;
+      if (isSyncing || !isController) return;
       const currentTime = player.getCurrentTime();
       const state = event.data;
       set(videoRef, {
