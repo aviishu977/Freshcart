@@ -1,90 +1,201 @@
-<!DOCTYPE html><html lang="ka">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Realtime ჩატი</title>
-  <style>
-    body { margin: 0; font-family: sans-serif; background: #000; color: #fff; display: flex; flex-direction: column; height: 100vh; }
-    #chat { flex: 1; display: flex; flex-direction: column; padding: 10px; background: #111; overflow: hidden; }
-    #messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
-    .message { padding: 5px 10px; margin-bottom: 5px; background: #222; border-radius: 8px; }
-    #chatInput { padding: 10px; border: none; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; background: #222; color: white; }
-    #login, #logout { margin: 10px; padding: 10px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; }
-    #nameInput { margin: 10px; padding: 10px; font-size: 16px; width: 100%; box-sizing: border-box; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Live ASCII Camera Chat Responsive</title>
+<style>
+  body {
+    margin: 0; padding: 10px;
+    background: #000;
+    color: #eee;
+    font-family: monospace;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+  }
+  .ascii-stream {
+    background: #111;
+    padding: 6px;
+    font-size: 9px;
+    line-height: 9px;
+    white-space: pre;
+    user-select: none;
+    box-sizing: border-box;
+    border-radius: 6px;
+    width: calc(50% - 15px); /* 2 გამოდის რიგში */
+    max-width: 480px;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  /* მობილურზე ერთი სვეტი */
+  @media (max-width: 600px) {
+    .ascii-stream {
+      width: 100%;
+      font-size: 7px;
+      line-height: 7px;
+      max-width: none;
+    }
+  }
+</style>
 </head>
-<body><button id="login">🔐 Google-ით შესვლა</button> <input id="nameInput" placeholder="შეიყვანე შენი სახელი" style="display: none;" /> <button id="logout" style="display: none;">🚪 გამოსვლა</button>
+<body>
+  <!-- აქ ჩნდება ASCII სტრიმები -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
-  <div id="chat" style="display:none;">
-    <div id="messages"></div>
-    <input id="chatInput" placeholder="შეიყვანე შეტყობინება..." />
-  </div>  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, onChildAdded, push } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
+    authDomain: "photog-457a1.firebaseapp.com",
+    databaseURL: "https://photog-457a1-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "photog-457a1",
+    storageBucket: "photog-457a1.firebasestorage.app",
+    messagingSenderId: "568507243860",
+    appId: "1:568507243860:web:f9a7128c3e703aa79c3cc1",
+    measurementId: "G-3D4Z7BKRBH"
+  };
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
-      authDomain: "photog-457a1.firebaseapp.com",
-      databaseURL: "https://photog-457a1-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "photog-457a1",
-      storageBucket: "photog-457a1.firebasestorage.app",
-      messagingSenderId: "568507243860",
-      appId: "1:568507243860:web:f9a7128c3e703aa79c3cc1",
-      measurementId: "G-3D4Z7BKRBH"
-    };
+  // დააყენე Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+  const chars = " .:-=+*#%@";
 
-    const loginBtn = document.getElementById("login");
-    const logoutBtn = document.getElementById("logout");
-    const chatDiv = document.getElementById("chat");
-    const chatInput = document.getElementById("chatInput");
-    const messagesDiv = document.getElementById("messages");
-    const nameInput = document.getElementById("nameInput");
-    const chatRef = ref(db, "chat_messages");
+  // მომხმარებლის უნიკალური ID
+  const userId = 'user-' + Math.random().toString(36).substr(2, 9);
 
-    let currentUser = null;
-    let displayName = "მომხმარებელი";
+  // რეფი Firebase-ს მონაცემებისთვის
+  const userRef = ref(db, `ascii-users/${userId}`);
+  const allUsersRef = ref(db, 'ascii-users');
 
-    loginBtn.onclick = () => signInWithPopup(auth, provider);
-    logoutBtn.onclick = () => signOut(auth);
+  // კამერის ელემენტები (თვითონ არ არის DOM-ში)
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.playsInline = true;
+  video.style.display = 'none';
+  document.body.appendChild(video);
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "inline-block";
-        nameInput.style.display = "block";
-        chatDiv.style.display = "flex";
-      } else {
-        currentUser = null;
-        loginBtn.style.display = "inline-block";
-        logoutBtn.style.display = "none";
-        nameInput.style.display = "none";
-        chatDiv.style.display = "none";
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // DOM კუნტეინერი
+  const streamsContainer = document.createElement('div');
+  streamsContainer.style.width = '100%';
+  document.body.appendChild(streamsContainer);
+
+  // დავაბრუნოთ გამოსახულების ზომები – აქ დაგვჭირდება ერგონომიკა
+  const ASCII_WIDTH = 120;  // სიგანე სიმბოლოებში
+  const ASCII_HEIGHT = 72;  // სიმაღლე სიმბოლოებში
+
+  canvas.width = ASCII_WIDTH;
+  canvas.height = ASCII_HEIGHT;
+
+  // ჩვენ ვაჩვენებთ მხოლოდ ამ ობიექტით
+  const asciiElements = {};
+
+  // FPS ოპტიმიზაცია (რამდენჯერ განახლდეს წამში)
+  const FPS = 12;
+  const FRAME_INTERVAL = 1000 / FPS;
+
+  // დროს გამოვთვლით წინა ჩაწერისთვის
+  let lastFrameTime = 0;
+
+  // წამების დაგვიანება ფოტოებს შორის, რომ ზედმეტი დატვირთვა არ იყოს
+  function sendFrame(asciiStr) {
+    set(userRef, {
+      ascii: asciiStr,
+      lastUpdated: Date.now()
+    });
+  }
+
+  function drawAsciiFrame() {
+    ctx.drawImage(video, 0, 0, ASCII_WIDTH, ASCII_HEIGHT);
+    const imgData = ctx.getImageData(0, 0, ASCII_WIDTH, ASCII_HEIGHT).data;
+
+    let asciiStr = "";
+    for(let y=0; y < ASCII_HEIGHT; y++) {
+      for(let x=0; x < ASCII_WIDTH; x++) {
+        const i = (y * ASCII_WIDTH + x) * 4;
+        const r = imgData[i];
+        const g = imgData[i+1];
+        const b = imgData[i+2];
+        const brightness = (r + g + b) / 3;
+        const charIndex = Math.floor((brightness / 255) * (chars.length -1));
+        asciiStr += chars[charIndex];
       }
-    });
+      asciiStr += '\n';
+    }
+    return asciiStr;
+  }
 
-    chatInput.addEventListener("keypress", function(e) {
-      if (e.key === "Enter" && chatInput.value.trim()) {
-        const text = chatInput.value.trim();
-        const name = nameInput.value.trim() || currentUser.displayName || "მომხმარებელი";
-        push(chatRef, { text, name, timestamp: Date.now() });
-        chatInput.value = "";
+  function update() {
+    const now = performance.now();
+
+    if (now - lastFrameTime > FRAME_INTERVAL) {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const asciiStr = drawAsciiFrame();
+        localAsciiElement.textContent = asciiStr;
+        sendFrame(asciiStr);
+        lastFrameTime = now;
       }
-    });
+    }
+    requestAnimationFrame(update);
+  }
 
-    onChildAdded(chatRef, (data) => {
-      const msg = data.val();
-      const div = document.createElement("div");
-      div.className = "message";
-      div.innerHTML = `<strong>${msg.name}:</strong> ${msg.text}`;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
-  </script></body>
+  // ლოკალური ASCII გამოჩენა
+  const localAsciiElement = document.createElement('pre');
+  localAsciiElement.className = 'ascii-stream';
+  localAsciiElement.style.border = '2px solid #4CAF50';
+  streamsContainer.appendChild(localAsciiElement);
+
+  // კამერის ჩართვა
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await video.play();
+      update();
+    } catch (e) {
+      localAsciiElement.textContent = "კამერაზე წვდომა ვერ მოხერხდა";
+      console.error(e);
+    }
+  }
+
+  // სხვა მომხმარებლების მონაცემების მოსმენა და ჩვენება
+  onValue(allUsersRef, snapshot => {
+    const data = snapshot.val() || {};
+    // ყველა მომხმარებელი უნდა გამოვაჩინოთ
+    // თავიდან თუ აქვს არარის ელემენტი, შევქმნათ, თუ გაქრა მომხმარებელი, წავშალოთ
+    for (const id in asciiElements) {
+      if (!(id in data)) {
+        asciiElements[id].remove();
+        delete asciiElements[id];
+      }
+    }
+
+    for (const id in data) {
+      if (id === userId) continue; // საკუთარ სტრიმს არ ვამატებთ მეორე ჯერ
+
+      if (!asciiElements[id]) {
+        const pre = document.createElement('pre');
+        pre.className = 'ascii-stream';
+        streamsContainer.appendChild(pre);
+        asciiElements[id] = pre;
+      }
+      asciiElements[id].textContent = data[id].ascii || '';
+    }
+  });
+
+  // მომხმარებლის წასვლისას მისი მონაცემის წაშლა
+  window.addEventListener('beforeunload', () => {
+    remove(userRef);
+  });
+
+  // კამერის გაშვება
+  startCamera();
+</script>
+</body>
 </html>
