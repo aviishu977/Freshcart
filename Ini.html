@@ -2,23 +2,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ვირტუალური ტელევიზია</title>
+  <title>Realtime ჩატი</title>
   <style>
     body { margin: 0; font-family: sans-serif; background: #000; color: #fff; display: flex; flex-direction: column; height: 100vh; }
-    #player { width: 100%; height: 220px; }
     #chat { flex: 1; display: flex; flex-direction: column; padding: 10px; background: #111; overflow: hidden; }
     #messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
     .message { padding: 5px 10px; margin-bottom: 5px; background: #222; border-radius: 8px; }
     #chatInput { padding: 10px; border: none; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; background: #222; color: white; }
+    #login, #logout { margin: 10px; padding: 10px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; }
+    #nameInput { margin: 10px; padding: 10px; font-size: 16px; width: 100%; box-sizing: border-box; }
   </style>
 </head>
-<body>  <div id="player"></div>
-  <div id="chat">
+<body><button id="login">🔐 Google-ით შესვლა</button> <input id="nameInput" placeholder="შეიყვანე შენი სახელი" style="display: none;" /> <button id="logout" style="display: none;">🚪 გამოსვლა</button>
+
+  <div id="chat" style="display:none;">
     <div id="messages"></div>
     <input id="chatInput" placeholder="შეიყვანე შეტყობინება..." />
   </div>  <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set, push, onChildAdded, get, child } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    import { getDatabase, ref, onChildAdded, push } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
@@ -33,91 +36,55 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
 
-    let tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.body.appendChild(tag);
-
-    let player;
-    let isSyncing = false;
-    let isController = false;
-    const YOUTUBE_VIDEO_ID = "dQw4w9WgXcQ";
-    const videoRef = ref(db, "virtual_tv/videoStatus");
-    const chatRef = ref(db, "virtual_tv/chatMessages");
-    const controllerRef = ref(db, "virtual_tv/controller");
-
-    window.onYouTubeIframeAPIReady = function() {
-      player = new YT.Player('player', {
-        videoId: YOUTUBE_VIDEO_ID,
-        playerVars: { 'playsinline': 1 },
-        events: {
-          'onReady': onPlayerReady,
-          'onStateChange': onPlayerStateChange
-        }
-      });
-    };
-
-    async function onPlayerReady(event) {
-      const snapshot = await get(controllerRef);
-      if (!snapshot.exists()) {
-        await set(controllerRef, { since: Date.now(), id: Math.random().toString(36).substring(2, 10) });
-        isController = true;
-        push(chatRef, { text: "🔧 ახალი კონტროლერი გაწვდილია ამ მოწყობილობაზე.", timestamp: Date.now() });
-      }
-
-      onValue(videoRef, (snapshot) => {
-        const status = snapshot.val();
-        if (!status || !player) return;
-        isSyncing = true;
-        if (status.state === YT.PlayerState.PLAYING) {
-          player.seekTo(status.time || 0, true);
-          player.playVideo();
-        } else if (status.state === YT.PlayerState.PAUSED) {
-          player.seekTo(status.time || 0, true);
-          player.pauseVideo();
-        } else if (status.state === YT.PlayerState.ENDED) {
-          player.seekTo(status.time || 0, true);
-          player.stopVideo();
-        }
-        isSyncing = false;
-      });
-
-      onChildAdded(chatRef, (data) => {
-        const message = data.val();
-        addChatMessage(message.text);
-      });
-    }
-
-    function onPlayerStateChange(event) {
-      if (isSyncing || !isController) return;
-      const currentTime = player.getCurrentTime();
-      const state = event.data;
-      set(videoRef, {
-        state: state,
-        time: currentTime,
-        updatedAt: Date.now()
-      });
-    }
-
-    const messagesDiv = document.getElementById("messages");
+    const loginBtn = document.getElementById("login");
+    const logoutBtn = document.getElementById("logout");
+    const chatDiv = document.getElementById("chat");
     const chatInput = document.getElementById("chatInput");
+    const messagesDiv = document.getElementById("messages");
+    const nameInput = document.getElementById("nameInput");
+    const chatRef = ref(db, "chat_messages");
 
-    function addChatMessage(text) {
-      const div = document.createElement("div");
-      div.className = "message";
-      div.textContent = text;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
+    let currentUser = null;
+    let displayName = "მომხმარებელი";
+
+    loginBtn.onclick = () => signInWithPopup(auth, provider);
+    logoutBtn.onclick = () => signOut(auth);
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+        nameInput.style.display = "block";
+        chatDiv.style.display = "flex";
+      } else {
+        currentUser = null;
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+        nameInput.style.display = "none";
+        chatDiv.style.display = "none";
+      }
+    });
 
     chatInput.addEventListener("keypress", function(e) {
       if (e.key === "Enter" && chatInput.value.trim()) {
-        push(chatRef, {
-          text: chatInput.value.trim(),
-          timestamp: Date.now()
-        });
+        const text = chatInput.value.trim();
+        const name = nameInput.value.trim() || currentUser.displayName || "მომხმარებელი";
+        push(chatRef, { text, name, timestamp: Date.now() });
         chatInput.value = "";
       }
+    });
+
+    onChildAdded(chatRef, (data) => {
+      const msg = data.val();
+      const div = document.createElement("div");
+      div.className = "message";
+      div.innerHTML = `<strong>${msg.name}:</strong> ${msg.text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
   </script></body>
 </html>
