@@ -1,355 +1,108 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ka">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Realtime Drawing & Audio Chat</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-  body { background: #f0f2f5; padding: 1rem; }
-  .container { max-width: 480px; margin: auto; }
-  input, button {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 1rem;
-  }
-  button { cursor: pointer; background: #2563eb; color: white; border: none; }
-  button:disabled { background: #aaa; cursor: default; }
-  canvas {
-    border: 2px solid #111;
-    margin-top: 1rem;
-    border-radius: 12px;
-    touch-action: none;
-    width: 100%;
-    height: 400px;
-    display: block;
-  }
-  .hidden { display: none; }
-  #remoteAudio { width: 100%; margin-top: 10px; }
-</style>
+  <meta charset="UTF-8">
+  <title>Global Voice Call Simulation</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    h1 { margin-bottom: 10px; }
+    .users {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      max-width: 600px;
+      justify-content: center;
+    }
+    .user {
+      padding: 10px 20px;
+      border-radius: 20px;
+      background: #333;
+      transition: background 0.3s;
+    }
+    .speaking {
+      background: limegreen;
+      color: black;
+      font-weight: bold;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #444;
+      color: white;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <div id="authSection">
-    <h2>Register / Login</h2>
-    <input type="email" id="email" placeholder="Email" autocomplete="username" />
-    <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
-    <button id="loginBtn">Login / Register</button>
-    <div id="authMsg"></div>
-  </div>
 
-  <div id="usernameSection" class="hidden">
-    <h3>Choose Username</h3>
-    <input type="text" id="usernameInput" placeholder="Username" />
-    <button id="saveUsernameBtn">Save Username</button>
-  </div>
+<h1>🌍 გლობალური ვოის კოლ-ჩატი</h1>
+<div class="users" id="users"></div>
+<button onclick="toggleSpeaking()">💬 საუბარი</button>
 
-  <div id="searchSection" class="hidden">
-    <h3>Find user to draw with</h3>
-    <input type="text" id="searchInput" placeholder="Enter username" />
-    <button id="searchBtn">Connect</button>
-    <div id="searchMsg"></div>
-  </div>
-
-  <div id="drawSection" class="hidden">
-    <h3>Drawing with friend</h3>
-    <button id="toggleAudioBtn">Turn Audio On</button>
-    <audio id="remoteAudio" autoplay></audio>
-    <canvas id="canvas" width="300" height="400"></canvas>
-  </div>
-</div>
-
+<!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-  import {
-    getAuth,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-  } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-  import {
-    getDatabase,
-    ref,
-    set,
-    get,
-    onChildAdded,
-    push,
-    update,
-    onValue,
-  } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+  import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyDPj-AL29OtV3Vg2jqYbB9tzNLKLGTZ38g",
+    apiKey: "AIzaSyBRtcHMJJj-WD86E41ZVS3cm2ggQHyPYnI",
     authDomain: "photog-457a1.firebaseapp.com",
     databaseURL: "https://photog-457a1-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "photog-457a1",
-    storageBucket: "photog-457a1.appspot.com",
+    storageBucket: "photog-457a1.firebasestorage.app",
     messagingSenderId: "568507243860",
-    appId: "1:568507243860:web:6d00228efa2f62029c3cc1",
-    measurementId: "G-THSFFCMH18",
+    appId: "1:568507243860:web:f9a7128c3e703aa79c3cc1",
+    measurementId: "G-3D4Z7BKRBH"
   };
 
   const app = initializeApp(firebaseConfig);
-  const auth = getAuth();
-  const db = getDatabase();
+  const db = getDatabase(app);
 
-  // DOM elements
-  const authSection = document.getElementById("authSection");
-  const emailInput = document.getElementById("email");
-  const passwordInput = document.getElementById("password");
-  const loginBtn = document.getElementById("loginBtn");
-  const authMsg = document.getElementById("authMsg");
+  // Generate random username
+  const username = "user_" + Math.floor(Math.random() * 10000);
+  const userRef = ref(db, 'call/' + username);
 
-  const usernameSection = document.getElementById("usernameSection");
-  const usernameInput = document.getElementById("usernameInput");
-  const saveUsernameBtn = document.getElementById("saveUsernameBtn");
+  // Add user to DB
+  set(userRef, { speaking: false });
 
-  const searchSection = document.getElementById("searchSection");
-  const searchInput = document.getElementById("searchInput");
-  const searchBtn = document.getElementById("searchBtn");
-  const searchMsg = document.getElementById("searchMsg");
-
-  const drawSection = document.getElementById("drawSection");
-  const toggleAudioBtn = document.getElementById("toggleAudioBtn");
-  const remoteAudio = document.getElementById("remoteAudio");
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");
-
-  let currentUser = null;
-  let sessionId = null;
-
-  // Authentication
-  loginBtn.onclick = async () => {
-    authMsg.textContent = "";
-    if (!emailInput.value || !passwordInput.value) {
-      authMsg.textContent = "Fill in email and password.";
-      return;
-    }
-    try {
-      const userCred = await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-      currentUser = userCred.user;
-    } catch (e) {
-      try {
-        const userCred = await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-        currentUser = userCred.user;
-      } catch (err) {
-        authMsg.textContent = "Error: " + err.message;
-      }
-    }
-  };
-
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      currentUser = user;
-      authSection.classList.add("hidden");
-      const userRef = ref(db, `users/${user.uid}`);
-      const snap = await get(userRef);
-      if (!snap.exists()) {
-        usernameSection.classList.remove("hidden");
-      } else {
-        searchSection.classList.remove("hidden");
-      }
-    } else {
-      authSection.classList.remove("hidden");
-      usernameSection.classList.add("hidden");
-      searchSection.classList.add("hidden");
-      drawSection.classList.add("hidden");
-      sessionId = null;
-      clearCanvas();
-      stopAudioCall();
-    }
+  // Remove user when disconnected
+  window.addEventListener("beforeunload", () => {
+    remove(userRef);
   });
 
-  // Save username
-  saveUsernameBtn.onclick = async () => {
-    if (!usernameInput.value.trim()) {
-      alert("Enter a username");
-      return;
-    }
-    await set(ref(db, `users/${currentUser.uid}`), {
-      username: usernameInput.value.trim(),
-    });
-    usernameSection.classList.add("hidden");
-    searchSection.classList.remove("hidden");
-  };
-
-  // Search for user by username
-  searchBtn.onclick = async () => {
-    searchMsg.textContent = "";
-    const searchName = searchInput.value.trim();
-    if (!searchName) {
-      searchMsg.textContent = "Enter a username to search.";
-      return;
-    }
-    const allUsersSnap = await get(ref(db, "users"));
-    let foundUid = null;
-    allUsersSnap.forEach((child) => {
-      if (child.val().username === searchName) {
-        foundUid = child.key;
-      }
-    });
-    if (!foundUid) {
-      searchMsg.textContent = "User not found.";
-      return;
-    }
-    if (foundUid === currentUser.uid) {
-      searchMsg.textContent = "Cannot connect to yourself.";
-      return;
-    }
-    sessionId = [currentUser.uid, foundUid].sort().join("_");
-    await set(ref(db, `sessions/${sessionId}/users/${currentUser.uid}`), true);
-    await set(ref(db, `sessions/${sessionId}/users/${foundUid}`), true);
-    searchSection.classList.add("hidden");
-    drawSection.classList.remove("hidden");
-    initDrawing(sessionId);
-  };
-
-  // Canvas drawing
-  function clearCanvas() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Toggle speaking
+  let speaking = false;
+  window.toggleSpeaking = function () {
+    speaking = !speaking;
+    set(userRef, { speaking });
   }
 
-  function initDrawing(sessionPath) {
-    clearCanvas();
-    const drawRef = ref(db, `sessions/${sessionPath}/drawing`);
-
-    let drawing = false;
-
-    canvas.addEventListener("pointerdown", (e) => {
-      drawing = true;
-      draw(e);
-    });
-
-    canvas.addEventListener("pointermove", (e) => {
-      if (drawing) draw(e);
-    });
-
-    canvas.addEventListener("pointerup", () => (drawing = false));
-    canvas.addEventListener("pointerleave", () => (drawing = false));
-
-    function draw(e) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      push(drawRef, {
-        x,
-        y,
-        uid: currentUser.uid,
-        timestamp: Date.now(),
-      });
+  // Listen for updates
+  const usersDiv = document.getElementById("users");
+  const callRef = ref(db, 'call/');
+  onValue(callRef, (snapshot) => {
+    const users = snapshot.val() || {};
+    usersDiv.innerHTML = '';
+    for (const [key, value] of Object.entries(users)) {
+      const div = document.createElement("div");
+      div.className = "user" + (value.speaking ? " speaking" : "");
+      div.textContent = value.speaking ? `🎙 ${key}` : key;
+      usersDiv.appendChild(div);
     }
-
-    // Listen to remote drawings
-    onChildAdded(drawRef, (snapshot) => {
-      const { x, y, uid } = snapshot.val();
-      if (uid !== currentUser.uid) {
-        ctx.fillStyle = "#2563eb";
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    });
-
-    startAudioCall(sessionPath);
-  }
-
-  // WebRTC Audio Chat
-  const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-  let localStream = null;
-  let peerConnection = null;
-
-  toggleAudioBtn.onclick = () => {
-    if (!peerConnection) {
-      startAudioCall(sessionId);
-      toggleAudioBtn.textContent = "Turn Audio Off";
-    } else {
-      stopAudioCall();
-      toggleAudioBtn.textContent = "Turn Audio On";
-    }
-  };
-
-  async function startAudioCall(sessionPath) {
-    if (!sessionPath) return;
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      alert("Microphone access denied.");
-      return;
-    }
-    peerConnection = new RTCPeerConnection(configuration);
-
-    localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
-
-    peerConnection.ontrack = (event) => {
-      remoteAudio.srcObject = event.streams[0];
-    };
-
-    const signalsRef = ref(db, `sessions/${sessionPath}/webrtcSignals`);
-
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        push(ref(db, `sessions/${sessionPath}/webrtcSignals/candidates`), event.candidate.toJSON());
-      }
-    };
-
-    // Listen for signaling messages
-    onValue(ref(db, `sessions/${sessionPath}/webrtcSignals/offer`), async (snapshot) => {
-      const offer = snapshot.val();
-      if (offer && !peerConnection.currentRemoteDescription) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        await set(ref(db, `sessions/${sessionPath}/webrtcSignals/answer`), answer.toJSON());
-      }
-    });
-
-    onValue(ref(db, `sessions/${sessionPath}/webrtcSignals/answer`), async (snapshot) => {
-      const answer = snapshot.val();
-      if (answer && peerConnection.signalingState !== "stable") {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-      }
-    });
-
-    onChildAdded(ref(db, `sessions/${sessionPath}/webrtcSignals/candidates`), async (snapshot) => {
-      const candidate = snapshot.val();
-      if (candidate) {
-        try {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    });
-
-    // Create offer if not exists
-    const offerSnap = await get(ref(db, `sessions/${sessionPath}/webrtcSignals/offer`));
-    if (!offerSnap.exists()) {
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      await set(ref(db, `sessions/${sessionPath}/webrtcSignals/offer`), offer.toJSON());
-    }
-  }
-
-  function stopAudioCall() {
-    if (peerConnection) {
-      peerConnection.close();
-      peerConnection = null;
-    }
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
-      localStream = null;
-    }
-    remoteAudio.srcObject = null;
-  }
+  });
 </script>
+
 </body>
 </html>
